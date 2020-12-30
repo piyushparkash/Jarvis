@@ -1,59 +1,45 @@
-import speech_recognition as sr
+import os
+import json
+import _thread
+from PyQt5.QtWidgets import (QDialog, QLabel, QHBoxLayout, QGridLayout, QApplication)
+import sys
+from PluginsLoader import PluginsLoader
+from Person import Person
+
+# Load the settings.json
+settingsJson = json.load(open('settings.json'))
+credJson = open(settingsJson['credJson']).read()
+os.environ['PROJECT_ID'] = json.loads(credJson)['project_id']
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.abspath(settingsJson['credJson'])
+voice_name = settingsJson['voice']
+name = settingsJson['name']
+
+app = QApplication(sys.argv)
 
 
-def listen_text():
+class MainApplication(QDialog):
+    styleLabel = QLabel("Text you said!")
 
-    r = sr.Recognizer();
-    with sr.Microphone() as source:
-        print "Say Something!";
-        audio = r.listen(source);
+    def __init__(self, parent=None):
+        super(MainApplication, self).__init__(parent)
+        topLayout = QHBoxLayout()
+        topLayout.addWidget(self.styleLabel)
+        mainLayout = QGridLayout()
+        mainLayout.addLayout(topLayout, 0, 0, 1, 2)
+        self.setLayout(mainLayout)
 
-    # recognize speech using Google Speech Recognition
-    try:
-        rec_text = r.recognize_google(audio)
-        print "Heard:" +  rec_text
-        return rec_text
-    except sr.UnknownValueError:
-        return False
-    except sr.RequestError as e:
-        return False
-
-def match_question(sentence, syntax):
-
-    matchedIndex = -1
-
-    for onesyntax in syntax:
-
-        #which will store the place where it is stored
-        positionarr = []
-
-        for cindex ,word in enumerate(onesyntax):
-
-            positionarr.append(sentence.find(word))
-
-            if -1 not in positionarr:
-                sorted_positionarray = positionarr
-
-                positionarr.sort()
-
-                if sorted_positionarray == positionarr:
-                    #This is perfect match
-                    matchedIndex = cindex
-                    break
-            else:
-                continue
-
-        if matchedIndex != -1:
-            break
+    def setText(self, text):
+        self.styleLabel.setText(text)
 
 
+gallery = MainApplication()
+gallery.show()
+person = Person(gallery, settingsJson, credJson)
 
-    return matchedIndex
+# Need to load the plugins
+pluginLoader = PluginsLoader(person=person, settings=settingsJson)
+pluginLoader.loadAllModules()
 
+_thread.start_new_thread(person.keepListening, ())
 
-
-
-syntax = [["what", "time"], ["what", "date"]]
-
-#Get the line what the user has said
-print match_question(listen_text(), syntax)
+sys.exit(app.exec_())
